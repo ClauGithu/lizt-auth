@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lizt — Verificación</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0f0f1a;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+
+    .card {
+      background: #1a1a2e;
+      border: 1px solid #2a2a45;
+      border-radius: 16px;
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.4);
+      text-align: center;
+    }
+
+    .logo h1 {
+      font-size: 2.4rem;
+      font-weight: 800;
+      color: #c9a84c;
+      letter-spacing: -1px;
+      margin-bottom: 4px;
+    }
+
+    .logo p {
+      color: #8888aa;
+      font-size: 0.9rem;
+      margin-bottom: 36px;
+    }
+
+    .lock-icon {
+      font-size: 2.4rem;
+      margin-bottom: 16px;
+    }
+
+    h2 {
+      color: #ffffff;
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .subtitle {
+      color: #8888aa;
+      font-size: 0.92rem;
+      line-height: 1.6;
+      margin-bottom: 8px;
+    }
+
+    .email-highlight {
+      color: #c9a84c;
+      font-weight: 600;
+    }
+
+    .note {
+      color: #555577;
+      font-size: 0.82rem;
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+
+    /* OTP input */
+    .otp-group {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+
+    .otp-group input {
+      width: 48px;
+      height: 56px;
+      text-align: center;
+      font-size: 1.4rem;
+      font-weight: 700;
+      background: #0f0f1a;
+      border: 1px solid #2a2a45;
+      border-radius: 8px;
+      color: #ffffff;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .otp-group input:focus {
+      border-color: #c9a84c;
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 13px;
+      background: #c9a84c;
+      color: #0f0f1a;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      margin-bottom: 20px;
+    }
+    .btn-primary:hover { background: #d4b660; }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .resend-link {
+      display: inline-block;
+      color: #8888aa;
+      font-size: 0.82rem;
+      text-decoration: none;
+      border-bottom: 1px dashed #444466;
+      cursor: pointer;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+      padding: 0;
+    }
+    .resend-link:hover { color: #c9a84c; border-color: #c9a84c; }
+
+    .alert {
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      margin-bottom: 20px;
+    }
+    .alert-error {
+      background: rgba(220,53,69,0.15);
+      border: 1px solid rgba(220,53,69,0.3);
+      color: #ff6b7a;
+    }
+    .alert-success {
+      background: rgba(40,167,69,0.15);
+      border: 1px solid rgba(40,167,69,0.3);
+      color: #5dd879;
+    }
+
+    /* Send code screen */
+    #screen-send .btn-primary { margin-top: 8px; }
+
+    /* Hidden */
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <h1>Lizt</h1>
+      <p>Contenido inmobiliario con IA</p>
+    </div>
+
+    <!-- Pantalla 1: Enviar código -->
+    <div id="screen-send">
+      <div class="lock-icon">🔐</div>
+      <h2>Casi listo</h2>
+      <p class="subtitle">Para abrir Lizt por primera vez verificamos tu cuenta.<br>
+      Te mandamos un código a</p>
+      <p class="email-highlight" id="display-email" style="margin: 8px 0 12px;">cargando...</p>
+      <p class="note">Solo toma un segundo.</p>
+      <div id="alert-send" class="hidden"></div>
+      <button class="btn-primary" id="btn-send" onclick="sendCode()">
+        Enviar mi código →
+      </button>
+    </div>
+
+    <!-- Pantalla 2: Ingresar código -->
+    <div id="screen-verify" class="hidden">
+      <div class="lock-icon">📨</div>
+      <h2>Revisa tu correo</h2>
+      <p class="subtitle" style="margin-bottom:24px;">Ingresa el código de 6 dígitos que enviamos a <span class="email-highlight" id="display-email-2"></span></p>
+      <div id="alert-verify" class="hidden"></div>
+      <div class="otp-group" id="otp-inputs">
+        <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+        <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+        <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+        <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+        <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+        <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+      </div>
+      <button class="btn-primary" id="btn-verify" onclick="verifyCode()">
+        Verificar y entrar →
+      </button>
+      <button class="resend-link" onclick="showSendScreen()">¿No llegó? Reenviar código</button>
+    </div>
+
+  </div>
+
+  <script>
+    const APP_URL = 'https://tool.lizt.us';
+    let userEmail = '';
+
+    // Read email from WL context or URL param
+    function getEmail() {
+      // Try URL param first (for testing)
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('email')) return params.get('email');
+
+      // Try PaymeGPT WL injected context
+      try {
+        if (window.parent && window.parent !== window) {
+          const pe = window.parent.document.querySelector('[data-user-email]');
+          if (pe) return pe.getAttribute('data-user-email');
+        }
+      } catch(e) {}
+
+      // Try meta tag injected by WL
+      const meta = document.querySelector('meta[name="user-email"]');
+      if (meta) return meta.getAttribute('content');
+
+      return '';
+    }
+
+    function init() {
+      userEmail = getEmail();
+      if (userEmail) {
+        document.getElementById('display-email').textContent = userEmail;
+        document.getElementById('display-email-2').textContent = userEmail;
+      } else {
+        document.getElementById('display-email').textContent = 'tu correo registrado';
+      }
+    }
+
+    function showAlert(screenId, message, type) {
+      const el = document.getElementById('alert-' + screenId);
+      el.className = 'alert alert-' + type;
+      el.textContent = message;
+      el.classList.remove('hidden');
+    }
+
+    function hideAlert(screenId) {
+      document.getElementById('alert-' + screenId).classList.add('hidden');
+    }
+
+    async function sendCode() {
+      const btn = document.getElementById('btn-send');
+      btn.disabled = true;
+      btn.textContent = 'Enviando...';
+      hideAlert('send');
+
+      try {
+        const res = await fetch(APP_URL + '/auth/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userEmail })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          document.getElementById('screen-send').classList.add('hidden');
+          document.getElementById('screen-verify').classList.remove('hidden');
+          document.getElementById('otp-inputs').querySelectorAll('input')[0].focus();
+        } else {
+          showAlert('send', data.detail || 'No encontramos una suscripción activa con ese correo.', 'error');
+          btn.disabled = false;
+          btn.textContent = 'Enviar mi código →';
+        }
+      } catch(e) {
+        showAlert('send', 'Error de conexión. Intenta de nuevo.', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Enviar mi código →';
+      }
+    }
+
+    async function verifyCode() {
+      const inputs = document.getElementById('otp-inputs').querySelectorAll('input');
+      const code = Array.from(inputs).map(i => i.value).join('');
+      if (code.length < 6) {
+        showAlert('verify', 'Ingresa los 6 dígitos del código.', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('btn-verify');
+      btn.disabled = true;
+      btn.textContent = 'Verificando...';
+      hideAlert('verify');
+
+      try {
+        const res = await fetch(APP_URL + '/auth/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userEmail, code: code })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.token) {
+          showAlert('verify', '¡Verificado! Abriendo Lizt...', 'success');
+          setTimeout(() => {
+            window.location.href = APP_URL + '?token=' + data.token;
+          }, 800);
+        } else {
+          showAlert('verify', data.detail || 'Código incorrecto o expirado.', 'error');
+          btn.disabled = false;
+          btn.textContent = 'Verificar y entrar →';
+        }
+      } catch(e) {
+        showAlert('verify', 'Error de conexión. Intenta de nuevo.', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Verificar y entrar →';
+      }
+    }
+
+    function showSendScreen() {
+      document.getElementById('screen-verify').classList.add('hidden');
+      document.getElementById('screen-send').classList.remove('hidden');
+      document.getElementById('btn-send').disabled = false;
+      document.getElementById('btn-send').textContent = 'Enviar mi código →';
+    }
+
+    // OTP auto-advance between inputs
+    document.addEventListener('DOMContentLoaded', function() {
+      init();
+      const inputs = document.getElementById('otp-inputs').querySelectorAll('input');
+      inputs.forEach((input, i) => {
+        input.addEventListener('input', () => {
+          if (input.value && i < inputs.length - 1) inputs[i+1].focus();
+        });
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Backspace' && !input.value && i > 0) inputs[i-1].focus();
+        });
+      });
+    });
+  </script>
+</body>
+</html>
