@@ -219,10 +219,22 @@
     <div id="screen-send" class="hidden">
       <div class="lock-icon">🔐</div>
       <h2>Casi listo</h2>
-      <p class="subtitle">Para abrir Lizt por primera vez verificamos tu cuenta.<br>
+      <!-- Subtítulo cuando el email ya viene de Quantiq AI -->
+      <p class="subtitle" id="subtitle-known">Para abrir Lizt por primera vez verificamos tu cuenta.<br>
       Te mandamos un código a</p>
       <p class="email-highlight" id="display-email" style="margin: 8px 0 12px;">cargando...</p>
-      <p class="note">Solo toma un segundo.</p>
+      <!-- Subtítulo y campo cuando el email NO viene de Quantiq AI -->
+      <p class="subtitle hidden" id="subtitle-manual">Ingresa el correo con el que te registraste en Quantiq AI para recibir tu código de acceso.</p>
+      <div id="email-input-wrap" class="hidden" style="margin-bottom: 16px; text-align: left;">
+        <input
+          type="email"
+          id="input-email"
+          placeholder="tu@correo.com"
+          style="width:100%;padding:12px 16px;background:#0f0f1a;border:1px solid #2a2a45;border-radius:8px;color:#fff;font-size:0.95rem;outline:none;transition:border-color 0.2s;"
+          onkeydown="if(event.key==='Enter') sendCode();"
+        />
+      </div>
+      <p class="note" id="note-send">Solo toma un segundo.</p>
       <div id="alert-send" class="hidden"></div>
       <button class="btn-primary" id="btn-send" onclick="sendCode()">
         Enviar mi código →
@@ -275,12 +287,10 @@
 
     let userEmail = '';
 
-    // Read email from URL (injected by Quantiq AI WL) or fallback methods
     function getEmail() {
       const params = new URLSearchParams(window.location.search);
       if (params.get('email')) return params.get('email').trim().toLowerCase();
 
-      // Fallback: try WL iframe context (same-domain only)
       try {
         if (window.parent && window.parent !== window) {
           const pe = window.parent.document.querySelector('[data-user-email]');
@@ -288,7 +298,6 @@
         }
       } catch(e) {}
 
-      // Fallback: meta tag
       const meta = document.querySelector('meta[name="user-email"]');
       if (meta) return meta.getAttribute('content').trim().toLowerCase();
 
@@ -310,9 +319,6 @@
       window.location.href = APP_URL + '?token=' + token;
     }
 
-    // -----------------------------------------------------------------------
-    // Auto-login — called when email comes from Quantiq AI URL param
-    // -----------------------------------------------------------------------
     async function tryAutoLogin(email) {
       try {
         const res = await fetch(APP_URL + '/auth/auto-login', {
@@ -327,7 +333,6 @@
           return;
         }
 
-        // License not found (user just registered, webhook may not have fired yet)
         if (res.status === 404) {
           document.getElementById('display-email-error').textContent = email;
           document.getElementById('screen-auto').classList.add('hidden');
@@ -335,11 +340,9 @@
           return;
         }
 
-        // Any other error → fall back to OTP
         fallbackToOtp();
 
       } catch(e) {
-        // Network error → fall back to OTP
         fallbackToOtp();
       }
     }
@@ -347,15 +350,35 @@
     function fallbackToOtp() {
       document.getElementById('screen-auto').classList.add('hidden');
       document.getElementById('screen-error').classList.add('hidden');
-      document.getElementById('display-email').textContent = userEmail || 'tu correo registrado';
-      document.getElementById('display-email-2').textContent = userEmail || '';
+      if (userEmail) {
+        document.getElementById('display-email').textContent = userEmail;
+        document.getElementById('display-email-2').textContent = userEmail;
+      } else {
+        document.getElementById('subtitle-known').classList.add('hidden');
+        document.getElementById('display-email').classList.add('hidden');
+        document.getElementById('subtitle-manual').classList.remove('hidden');
+        document.getElementById('email-input-wrap').classList.remove('hidden');
+        document.getElementById('note-send').classList.add('hidden');
+        setTimeout(function() {
+          var el = document.getElementById('input-email');
+          if (el) el.focus();
+        }, 100);
+      }
       document.getElementById('screen-send').classList.remove('hidden');
     }
 
-    // -----------------------------------------------------------------------
-    // OTP flow (fallback)
-    // -----------------------------------------------------------------------
     async function sendCode() {
+      if (!userEmail) {
+        const inputEl = document.getElementById('input-email');
+        userEmail = (inputEl ? inputEl.value.trim().toLowerCase() : '');
+      }
+      if (!userEmail) {
+        showAlert('send', 'Por favor ingresa tu correo electrónico.', 'error');
+        return;
+      }
+
+      document.getElementById('display-email-2').textContent = userEmail;
+
       const btn = document.getElementById('btn-send');
       btn.disabled = true;
       btn.textContent = 'Enviando...';
@@ -428,20 +451,15 @@
       document.getElementById('btn-send').textContent = 'Enviar mi código →';
     }
 
-    // OTP auto-advance
     document.addEventListener('DOMContentLoaded', function() {
       userEmail = getEmail();
 
       if (userEmail) {
-        // Email detected from Quantiq AI → auto-login immediately
         tryAutoLogin(userEmail);
       } else {
-        // No email in URL → show OTP flow directly
-        document.getElementById('screen-auto').classList.add('hidden');
-        document.getElementById('screen-send').classList.remove('hidden');
+        fallbackToOtp();
       }
 
-      // OTP keyboard navigation
       const inputs = document.getElementById('otp-inputs').querySelectorAll('input');
       inputs.forEach((input, i) => {
         input.addEventListener('input', () => {
