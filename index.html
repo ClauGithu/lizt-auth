@@ -219,11 +219,9 @@
     <div id="screen-send" class="hidden">
       <div class="lock-icon">🔐</div>
       <h2>Casi listo</h2>
-      <!-- Subtítulo cuando el email ya viene de Quantiq AI -->
       <p class="subtitle" id="subtitle-known">Para abrir Lizt por primera vez verificamos tu cuenta.<br>
       Te mandamos un código a</p>
       <p class="email-highlight" id="display-email" style="margin: 8px 0 12px;">cargando...</p>
-      <!-- Subtítulo y campo cuando el email NO viene de Quantiq AI -->
       <p class="subtitle hidden" id="subtitle-manual">Ingresa el correo con el que te registraste en Quantiq AI para recibir tu código de acceso.</p>
       <div id="email-input-wrap" class="hidden" style="margin-bottom: 16px; text-align: left;">
         <input
@@ -287,10 +285,31 @@
 
     let userEmail = '';
 
-    function getEmail() {
+    // Read email from URL or Quantiq AI contact context (async)
+    async function getEmailAsync() {
       const params = new URLSearchParams(window.location.search);
+
+      // 1. Email directo en URL (?email=)
       if (params.get('email')) return params.get('email').trim().toLowerCase();
 
+      // 2. contact_id en URL → llamar a la API de Quantiq AI
+      const contactId = params.get('contact_id');
+      if (contactId) {
+        try {
+          const res = await fetch(
+            'https://app.quantiqai.io/api/landing/context/' +
+            encodeURIComponent(contactId) + '?page_id=4388'
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.contact && data.contact.email) {
+              return data.contact.email.trim().toLowerCase();
+            }
+          }
+        } catch(e) {}
+      }
+
+      // 3. Fallback: atributo data-user-email en el iframe padre
       try {
         if (window.parent && window.parent !== window) {
           const pe = window.parent.document.querySelector('[data-user-email]');
@@ -298,6 +317,7 @@
         }
       } catch(e) {}
 
+      // 4. Fallback: meta tag
       const meta = document.querySelector('meta[name="user-email"]');
       if (meta) return meta.getAttribute('content').trim().toLowerCase();
 
@@ -451,8 +471,8 @@
       document.getElementById('btn-send').textContent = 'Enviar mi código →';
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
-      userEmail = getEmail();
+    document.addEventListener('DOMContentLoaded', async function() {
+      userEmail = await getEmailAsync();
 
       if (userEmail) {
         tryAutoLogin(userEmail);
